@@ -3,3 +3,5 @@ dvc[s3]
 sklearn
 pandas 
 pyyaml
+pytest
+tox
