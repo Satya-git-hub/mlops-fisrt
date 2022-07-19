@@ -5,3 +5,5 @@ pandas
 pyyaml
 pytest
 tox
+jupyterlab
+flake8

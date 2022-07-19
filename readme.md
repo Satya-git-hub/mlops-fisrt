@@ -16,3 +16,5 @@ git remote add origin https://github.com/Satya-git-hub/mlops-fisrt.git
 git branch -M main
 git push -u origin main
 
+to run setup.py > 
+pip install -e .
