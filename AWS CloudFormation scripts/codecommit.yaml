@@ -1,0 +1,42 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 
+  This template will create a CodeCommit repository which can be used to upload the application's source code.
+  Once created we can use the HTTPS endpoint to clone the source code into CodeCommit repository.
+
+Parameters:
+  RepositoryName:
+    Description: Repository names can be any valid combination of letters, numbers, periods, underscores, and dashes between 1 and 100 characters in length. Names are case sensitive.
+    Type: String
+  Description:
+    Type: String
+  ProjectName:
+    Type: String
+    Description: Name of the project you want to be deployed in CodeCommit
+
+Resources:
+  WineQualityRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties: 
+      RepositoryDescription: !Ref Description
+      RepositoryName: !Ref RepositoryName
+      Tags: 
+        - 
+          Key: Name
+          Value: !Ref ProjectName
+
+Outputs:
+  RepoARN:
+    Description: Amazon Resource Name (ARN) of the repository
+    Value: !GetAtt WineQualityRepo.Arn
+  CloneUrlHttp:
+    Description: URL to use for cloning the repository over HTTPS
+    Value: !GetAtt WineQualityRepo.CloneUrlHttp
+  CloneUrlSsh:
+    Description: URL to use for cloning the repository over SSH
+    Value: !GetAtt WineQualityRepo.CloneUrlSsh
+  Name:
+    Description: Repository's name
+    Value: !GetAtt WineQualityRepo.Name
+
+      

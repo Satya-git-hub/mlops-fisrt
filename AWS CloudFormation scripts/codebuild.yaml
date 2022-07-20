@@ -1,0 +1,111 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 
+This template will create a CodeCommit repository which can be used to upload the application's source code.
+Once created we can use the HTTPS endpoint to clone the source code into CodeCommit repository.
+
+Parameters:
+  CodeBuildProjectName:
+    Type: String
+    Description: The name must be unique across all of the projects in your AWS account.
+  CodeCommitRepoURL:
+    Type: String
+    Description: The HTTPS clone URL to the repository 
+
+Resources:
+  
+  # S3 bucket where build artifacts go
+  DeploymentArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Suspended
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                
+  CodeBuildServicePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodeBuildServicePolicy
+      Roles:
+        - !Ref CodeBuildServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: "arn:aws:logs:*:*:*"
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+            Resource:
+              - !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
+              - !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+      Artifacts: 
+        Artifacts
+      BadgeEnabled: True
+      BuildBatchConfig: 
+        ProjectBuildBatchConfig
+      Cache: 
+        ProjectCache
+      ConcurrentBuildLimit: Integer
+      Description: CodeBuild for the project
+      EncryptionKey: String
+      Environment: 
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+        EnvironmentVariables:
+          - Name: BUILD_ARTIFACT_BUCKET
+            Value: !Ref DeploymentArtifactBucket
+      FileSystemLocations: 
+        - ProjectFileSystemLocation
+      LogsConfig: 
+        LogsConfig
+      Name: !Ref CodeBuildProjectName
+      QueuedTimeoutInMinutes: Integer
+      ResourceAccessRole: String
+      SecondaryArtifacts: 
+        - Artifacts
+      SecondarySources: 
+        - Source
+      SecondarySourceVersions: 
+        - ProjectSourceVersion
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Source: 
+        Type: CODECOMMIT
+        Location: !Ref CodeCommitRepoURL
+      SourceVersion: String
+      Tags: 
+        - Tag
+      TimeoutInMinutes: 5
+      Triggers: 
+        ProjectTriggers
+      Visibility: String
+      VpcConfig: 
+        VpcConfig
+
+Outputs:
+  
