@@ -1,16 +1,18 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Description: 
-This template will create a CodeCommit repository which can be used to upload the application's source code.
-Once created we can use the HTTPS endpoint to clone the source code into CodeCommit repository.
+  This template will create a Build for the application.
 
 Parameters:
   CodeBuildProjectName:
     Type: String
-    Description: The name must be unique across all of the projects in your AWS account.
+    Description: Only alphanumeric characters, dash, and underscore are supported .
   CodeCommitRepoURL:
     Type: String
     Description: The HTTPS clone URL to the repository 
+  ProjectName:
+    Type: String
+    Description: Name of the project you want to be deployed in CodeCommit
 
 Resources:
   
@@ -63,16 +65,11 @@ Resources:
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties: 
-      Artifacts: 
-        Artifacts
+      Artifacts:
+        Type: NO_ARTIFACTS #The build project does not produce any build output
+        #Type: S3           #The build project stores build output in Amazon S3
       BadgeEnabled: True
-      BuildBatchConfig: 
-        ProjectBuildBatchConfig
-      Cache: 
-        ProjectCache
-      ConcurrentBuildLimit: Integer
       Description: CodeBuild for the project
-      EncryptionKey: String
       Environment: 
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
@@ -80,32 +77,28 @@ Resources:
         EnvironmentVariables:
           - Name: BUILD_ARTIFACT_BUCKET
             Value: !Ref DeploymentArtifactBucket
-      FileSystemLocations: 
-        - ProjectFileSystemLocation
-      LogsConfig: 
-        LogsConfig
       Name: !Ref CodeBuildProjectName
-      QueuedTimeoutInMinutes: Integer
-      ResourceAccessRole: String
-      SecondaryArtifacts: 
-        - Artifacts
-      SecondarySources: 
-        - Source
-      SecondarySourceVersions: 
-        - ProjectSourceVersion
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Source: 
         Type: CODECOMMIT
         Location: !Ref CodeCommitRepoURL
-      SourceVersion: String
       Tags: 
-        - Tag
+        - 
+          Key: Name
+          Value: !Ref ProjectName
       TimeoutInMinutes: 5
-      Triggers: 
-        ProjectTriggers
-      Visibility: String
-      VpcConfig: 
-        VpcConfig
 
 Outputs:
+  BuildArn:
+    Description: Arn of the CodeBuild Project
+    Value: !GetAtt CodeBuildProject.Arn
+  S3Arn:
+    Description: Arn of the S3 bucket
+    Value: !GetAtt DeploymentArtifactBucket.Arn
+  IAMRoleArn:
+    Description: Arn of IAm role
+    Value: !GetAtt CodeBuildServiceRole.Arn
+  IAMRoleId: 
+    Description: Role ID of IAM role
+    Value: !GetAtt CodeBuildServiceRole.RoleId
   
