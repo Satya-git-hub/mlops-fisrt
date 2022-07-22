@@ -86,7 +86,7 @@ Resources:
         - 
           Key: Name
           Value: !Ref ProjectName
-      TimeoutInMinutes: 5
+      TimeoutInMinutes: 10
 
 Outputs:
   BuildArn:
