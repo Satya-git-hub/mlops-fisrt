@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  DeploymentArtifactBucket:
+    Type: String
+    Description: Enter the bucket name
+  ApplicationName:
+    Type: String
+    Description: Enter the Application name
+
+Resources:
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Description: Role used for CodeDeploy to call AWS services 
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Description: Role used for EC2 to access S3 artifacts bucket
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  InstancePolicy: 
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodeDeployInstancePolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:PutObject
+              - s3:Get*
+              - s3:List*
+            Resource: '*'
+              #- !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
+              #- !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
+      Roles:
+        - !Ref InstanceRole
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties: 
+      ApplicationName: !Ref ApplicationName
+      ComputePlatform: Server
+      Tags: 
+        - 
+          Key: Name
+          Value: !Ref ApplicationName
+  
+  DeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties: 
+      AlarmConfiguration: 
+        AlarmConfiguration
+      ApplicationName: !Ref CodeDeployApplication
+      AutoRollbackConfiguration: 
+        AutoRollbackConfiguration
+      AutoScalingGroups: 
+        - String
+      BlueGreenDeploymentConfiguration: 
+        BlueGreenDeploymentConfiguration
+      Deployment: 
+        Deployment
+      DeploymentConfigName: String
+      DeploymentGroupName: String
+      DeploymentStyle: 
+        DeploymentStyle
+      Ec2TagFilters: 
+        - EC2TagFilter
+      Ec2TagSet: 
+        EC2TagSet
+      ECSServices: 
+        - ECSService
+      LoadBalancerInfo: 
+        LoadBalancerInfo
+      OnPremisesInstanceTagFilters: 
+        - TagFilter
+      OnPremisesTagSet: 
+        OnPremisesTagSet
+      OutdatedInstancesStrategy: String
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      Tags: 
+        - Tag
+      TriggerConfigurations: 
+        - TriggerConfig
+
+Outputs:
+  ServiceRoleArn:
+    Description: Arn of IAM role
+    Value: !GetAtt CodeDeployServiceRole.Arn
+  ServiceRoleId: 
+    Description: Role ID of IAM role
+    Value: !GetAtt CodeDeployServiceRole.RoleId
