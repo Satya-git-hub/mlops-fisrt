@@ -13,9 +13,6 @@ Parameters:
   ProjectName:
     Type: String
     Description: Name of the project you want to be deployed in CodeCommit
-  DeploymentArtifactBucket:
-    Type: String
-    Description: Enter the Artifact bucket name
 
 Resources:
   
