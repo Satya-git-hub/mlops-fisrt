@@ -72,8 +72,8 @@ Resources:
         Type: S3           #The build project stores build output in Amazon S3
         Location: !Ref DeploymentArtifactBucket          #bucket name
         EncryptionDisabled: True
-        Path: NONE
-        NamespaceType: NONE #BUILD_ID
+        #Path: NONE
+        #NamespaceType: BUILD_ID
         Name: build-output.zip
         Packaging: ZIP
 
