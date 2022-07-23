@@ -73,7 +73,7 @@ Resources:
         Location: !Ref DeploymentArtifactBucket          #bucket name
         EncryptionDisabled: True
         Path: NONE
-        NamespaceType: BUILD_ID
+        NamespaceType: NONE #BUILD_ID
         Name: build-output.zip
         Packaging: ZIP
 
