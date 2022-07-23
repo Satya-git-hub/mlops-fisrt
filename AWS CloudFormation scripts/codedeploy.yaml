@@ -1,9 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  DeploymentArtifactBucket:
-    Type: String
-    Description: Enter the bucket name
   ApplicationName:
     Type: String
     Description: Enter the Application name
@@ -27,6 +24,7 @@ Resources:
             Principal:
               Service:
                 - codedeploy.amazonaws.com      #this is for deployment on EC2, need to change this value if the deployment is on ECS / lambda
+  
   InstanceRole:
     Type: AWS::IAM::Role
     Description: Role used for EC2 to access S3 artifacts bucket
@@ -40,6 +38,7 @@ Resources:
                 - ec2.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+  
   InstancePolicy: 
     Type: AWS::IAM::Policy
     Properties:
@@ -66,7 +65,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties: 
       InstanceProfileName: ec2-instance-profile
-      Path: /
+      #Path: /
       Roles: 
        - !Ref InstanceRole
 
@@ -126,7 +125,7 @@ Resources:
   
   DeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
-    DependsOn: !Ref CodeDeployApplication
+    DependsOn: CodeDeployApplication
     Properties: 
       ApplicationName: !Ref CodeDeployApplication
       Deployment:
@@ -140,10 +139,12 @@ Resources:
             BundleType: Zip
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
       DeploymentStyle: 
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
         DeploymentType: IN_PLACE
       Ec2TagFilters: 
         - 
           Key: Type
+          Type: KEY_AND_VALUE
           Value: CodeDeloyEC2
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
       Tags: 
@@ -167,9 +168,9 @@ Outputs:
   InstanceProfileArn: 
     Description: Arn of Instance Profile
     Value: !GetAtt InstanceProfile.Arn
-  EC2SecurityGroup: 
-    Description: Security group for EC2 instances
-    Value: !GetAtt InstanceSecurityGroup
+  EC2SecurityGroupGroupID: 
+    Description: Security group ID for EC2 instances
+    Value: !GetAtt InstanceSecurityGroup.GroupId
   EC2AZ:
     Description: AZ of the EC2 instance
     Value: !GetAtt EC2Instance.AvailabilityZone
