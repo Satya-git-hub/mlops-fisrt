@@ -17,5 +17,7 @@ phases:
   post_build:
     commands:
       - echo Entered the POST BUILD phase
-
+artifacts:
+  files:
+    - '**/*'
       
