@@ -1,0 +1,240 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  ApplicationName:
+    Type: String
+    Description: Enter the Application name
+  KeyName: 
+    Type: AWS::EC2::KeyPair::KeyName
+  ApplicationRevisionBucket:
+    Type: String
+    Description: The name of the Amazon S3 bucket where the application revision is stored
+
+Resources:
+  CodeDeployServiceRole:
+    Type: AWS::IAM::Role
+    Description: Role used for CodeDeploy to call AWS services 
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: '1'
+            Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Principal:
+              Service:
+                #- ec2.amazonaws.com
+                - codedeploy.us-east-1.amazonaws.com
+                - "codedeploy.amazonaws.com"      #this is for deployment on EC2, need to change this value if the deployment is on ECS / lambda
+  
+  CodeDeployServicePolicy: 
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ServicePolicy
+      Roles:
+        - !Ref CodeDeployServiceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:Describe*
+              - "iam:PassRole"
+              - "ec2:CreateTags"
+              - "ec2:RunInstances"
+              - "autoscaling:CompleteLifecycleAction"
+              - "autoscaling:DeleteLifecycleHook"
+              - "autoscaling:DescribeAutoScalingGroups"
+              - "autoscaling:DescribeLifecycleHooks"
+              - "autoscaling:PutLifecycleHook"
+              - "autoscaling:RecordLifecycleActionHeartbeat"
+              - "autoscaling:CreateAutoScalingGroup"
+              - "autoscaling:UpdateAutoScalingGroup"
+              - "autoscaling:EnableMetricsCollection"
+              - "autoscaling:DescribePolicies"
+              - "autoscaling:DescribeScheduledActions"
+              - "autoscaling:DescribeNotificationConfigurations"
+              - "autoscaling:SuspendProcesses"
+              - "autoscaling:ResumeProcesses"
+              - "autoscaling:AttachLoadBalancers"
+              - "autoscaling:AttachLoadBalancerTargetGroups"
+              - "autoscaling:PutScalingPolicy"
+              - "autoscaling:PutScheduledUpdateGroupAction"
+              - "autoscaling:PutNotificationConfiguration"
+              - "autoscaling:PutWarmPool"
+              - "autoscaling:DescribeScalingActivities"
+              - "autoscaling:DeleteAutoScalingGroup"
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeInstanceStatus"
+              - "ec2:TerminateInstances"
+              - "tag:GetResources"
+              - "sns:Publish"
+              - "cloudwatch:DescribeAlarms"
+              - "cloudwatch:PutMetricAlarm"
+              - "elasticloadbalancing:DescribeLoadBalancers"
+              - "elasticloadbalancing:DescribeInstanceHealth"
+              - "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+              - "elasticloadbalancing:DeregisterInstancesFromLoadBalancer"
+              - "elasticloadbalancing:DescribeTargetGroups"
+              - "elasticloadbalancing:DescribeTargetHealth"
+              - "elasticloadbalancing:RegisterTargets"
+              - "elasticloadbalancing:DeregisterTargets"
+            Resource: '*'
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Description: Role used for EC2 to access S3 artifacts bucket
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+  
+  InstancePolicy: 
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CodeDeployInstancePolicy
+      Roles:
+        - !Ref InstanceRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:Get*"
+              - "s3:List*"
+            Resource: '*'
+      
+  
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties: 
+      InstanceProfileName: ec2-instance-profile
+      Roles: 
+       - !Ref InstanceRole
+
+  InstanceSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: SG to allow SSH access via port 22
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: '0.0.0.0/0'
+      Tags:
+        - Key: Name
+          Value: InstanceSecurityGroup
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    DependsOn: InstanceProfile
+    Properties: 
+      IamInstanceProfile: !Ref InstanceProfile
+      ImageId: ami-0cff7528ff583bf9a
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroupIds: 
+        - !Ref InstanceSecurityGroup
+      Tags: 
+        - 
+          Key: Type
+          Value: CodeDeloyEC2
+        -
+          Key: Name
+          Value: EC2byCodeDeploy
+      UserData:
+        Fn::Base64: !Sub |
+            #!/bin/bash
+            sudo yum update -y
+            sudo yum install git -y
+            sudo yum install python3-pip python3-devel python3-setuptools -y
+            sudo yum update 
+            sudo yum install -y ruby
+            sudo yum install wget
+            cd /home/ec2-user
+            wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto
+            sudo service codedeploy-agent start
+            sudo yum intall pip
+            sudo pip install supervisor 
+            sudo unlink /tmp/supervisor.sock
+
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    DependsOn: CodeDeployServiceRole
+    Properties: 
+      ApplicationName: !Ref ApplicationName
+      ComputePlatform: Server
+      Tags: 
+        - 
+          Key: Name
+          Value: !Ref ApplicationName
+  
+  DeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn: CodeDeployApplication
+    Properties: 
+      ApplicationName: !Ref CodeDeployApplication
+      Deployment:
+        Description: Description of Deployment for Application to which location
+        IgnoreApplicationStopFailures: true
+        Revision:
+          RevisionType: S3
+          S3Location:
+            Bucket: !Ref ApplicationRevisionBucket
+            Key: build-output.zip
+            BundleType: Zip
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      DeploymentStyle: 
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+        DeploymentType: IN_PLACE
+      Ec2TagFilters: 
+        - 
+          Key: Type
+          Type: KEY_AND_VALUE
+          Value: CodeDeloyEC2
+      ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
+      Tags: 
+        - 
+          Key: Name
+          Value: !Ref CodeDeployApplication
+      
+Outputs:
+  ServiceRoleArn:
+    Description: Arn of IAM service role
+    Value: !GetAtt CodeDeployServiceRole.Arn
+  ServiceRoleId: 
+    Description: Role ID of IAM service role
+    Value: !GetAtt CodeDeployServiceRole.RoleId
+  InstanceRoleArn: 
+    Description: Arn of IAM instance role
+    Value: !GetAtt InstanceRole.Arn
+  InstanceRoleId: 
+    Description: Role ID of IAM instance role
+    Value: !GetAtt InstanceRole.RoleId
+  InstanceProfileArn: 
+    Description: Arn of Instance Profile
+    Value: !GetAtt InstanceProfile.Arn
+  EC2SecurityGroupGroupID: 
+    Description: Security group ID for EC2 instances
+    Value: !GetAtt InstanceSecurityGroup.GroupId
+  EC2AZ:
+    Description: AZ of the EC2 instance
+    Value: !GetAtt EC2Instance.AvailabilityZone
+  EC2PublicDNS: 
+    Description: Public DNS name of EC2 instance
+    Value: !GetAtt EC2Instance.PublicDnsName
+  EC2PublicIP:
+    Description: Public IP of EC2 instance
+    Value: !GetAtt EC2Instance.PublicIp
+
+

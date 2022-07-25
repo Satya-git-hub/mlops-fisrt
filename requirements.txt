@@ -1,0 +1,11 @@
+dvc 
+dvc[s3]
+sklearn
+pandas 
+pyyaml
+pytest
+tox
+jupyterlab
+flake8
+flask
+gunicorn
