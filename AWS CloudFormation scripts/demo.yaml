@@ -1,14 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Parameters:
-  ApplicationName:
-    Type: String
-    Description: Enter the Application name
   KeyName: 
     Type: AWS::EC2::KeyPair::KeyName
-  ApplicationRevisionBucket:
-    Type: String
-    Description: The name of the Amazon S3 bucket where the application revision is stored
 
 Resources:
   CodeDeployServiceRole:
@@ -23,62 +17,9 @@ Resources:
               - sts:AssumeRole
             Principal:
               Service:
-                #- ec2.amazonaws.com
-                - "codedeploy.amazonaws.com"      #this is for deployment on EC2, need to change this value if the deployment is on ECS / lambda
+                - ec2.amazonaws.com
+                - codedeploy.amazonaws.com      #this is for deployment on EC2, need to change this value if the deployment is on ECS / lambda
   
-  CodeDeployServicePolicy: 
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: ServicePolicy
-      Roles:
-        - !Ref CodeDeployServiceRole
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - "iam:PassRole"
-              - "ec2:CreateTags"
-              - "ec2:RunInstances"
-              - "autoscaling:CompleteLifecycleAction"
-              - "autoscaling:DeleteLifecycleHook"
-              - "autoscaling:DescribeAutoScalingGroups"
-              - "autoscaling:DescribeLifecycleHooks"
-              - "autoscaling:PutLifecycleHook"
-              - "autoscaling:RecordLifecycleActionHeartbeat"
-              - "autoscaling:CreateAutoScalingGroup"
-              - "autoscaling:UpdateAutoScalingGroup"
-              - "autoscaling:EnableMetricsCollection"
-              - "autoscaling:DescribePolicies"
-              - "autoscaling:DescribeScheduledActions"
-              - "autoscaling:DescribeNotificationConfigurations"
-              - "autoscaling:SuspendProcesses"
-              - "autoscaling:ResumeProcesses"
-              - "autoscaling:AttachLoadBalancers"
-              - "autoscaling:AttachLoadBalancerTargetGroups"
-              - "autoscaling:PutScalingPolicy"
-              - "autoscaling:PutScheduledUpdateGroupAction"
-              - "autoscaling:PutNotificationConfiguration"
-              - "autoscaling:PutWarmPool"
-              - "autoscaling:DescribeScalingActivities"
-              - "autoscaling:DeleteAutoScalingGroup"
-              - "ec2:DescribeInstances"
-              - "ec2:DescribeInstanceStatus"
-              - "ec2:TerminateInstances"
-              - "tag:GetResources"
-              - "sns:Publish"
-              - "cloudwatch:DescribeAlarms"
-              - "cloudwatch:PutMetricAlarm"
-              - "elasticloadbalancing:DescribeLoadBalancers"
-              - "elasticloadbalancing:DescribeInstanceHealth"
-              - "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
-              - "elasticloadbalancing:DeregisterInstancesFromLoadBalancer"
-              - "elasticloadbalancing:DescribeTargetGroups"
-              - "elasticloadbalancing:DescribeTargetHealth"
-              - "elasticloadbalancing:RegisterTargets"
-              - "elasticloadbalancing:DeregisterTargets"
-            Resource: '*'
-
   InstanceRole:
     Type: AWS::IAM::Role
     Description: Role used for EC2 to access S3 artifacts bucket
@@ -104,8 +45,9 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              - "s3:Get*"
-              - "s3:List*"
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:ListBucket
             Resource: '*'
       
   
@@ -131,7 +73,6 @@ Resources:
 
   EC2Instance:
     Type: AWS::EC2::Instance
-    DependsOn: InstanceProfile
     Properties: 
       IamInstanceProfile: !Ref InstanceProfile
       ImageId: ami-0cff7528ff583bf9a
@@ -146,46 +87,28 @@ Resources:
         -
           Key: Name
           Value: EC2byCodeDeploy
-      UserData:
-        Fn::Base64: !Sub |
-            #!/bin/bash
-            sudo yum update -y
-            sudo yum install git -y
-            sudo yum install wget
-            sudo amazon-linux-extras install -y lamp-mariadb10.2-php7.2 php7.2
-            sudo yum install -y httpd 
-            sudo systemctl start httpd
-            sudo systemctl enable httpd
-            sudo systemctl is-enabled httpd
-            cd /home/ec2-user
-            wget https://aws-codedeploy-us-east-2.s3.amazonaws.com/latest/install
-            chmod +x ./install
-            sudo ./install auto
-            sudo service codedeploy-agent start
-
   CodeDeployApplication:
     Type: AWS::CodeDeploy::Application
-    DependsOn: CodeDeployServiceRole
     Properties: 
-      ApplicationName: !Ref ApplicationName
+      ApplicationName: wine_quality_app
       ComputePlatform: Server
       Tags: 
         - 
           Key: Name
-          Value: !Ref ApplicationName
+          Value: wine_quality_app
   
   DeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     DependsOn: CodeDeployApplication
     Properties: 
-      ApplicationName: !Ref CodeDeployApplication
+      ApplicationName: wine_quality_app
       Deployment:
         Description: Description of Deployment for Application to which location
         IgnoreApplicationStopFailures: true
         Revision:
           RevisionType: S3
           S3Location:
-            Bucket: !Ref ApplicationRevisionBucket
+            Bucket: codebuildstack-deploymentartifactbucket-1xkby9kjp4c5r
             Key: build-output.zip
             BundleType: Zip
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
@@ -201,7 +124,7 @@ Resources:
       Tags: 
         - 
           Key: Name
-          Value: !Ref CodeDeployApplication
+          Value: wine_quality_app
       
 Outputs:
   ServiceRoleArn:
