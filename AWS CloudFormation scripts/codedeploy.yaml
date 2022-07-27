@@ -1,5 +1,18 @@
 AWSTemplateFormatVersion: 2010-09-09
 
+Description: 
+  This template is used to create below mentioned resources -
+  CodeDeployServiceRole > for CodeDeploy to access other resources
+  CodeDeployServicePolicy > policy for service role
+  InstanceRole > for EC2 to access S3 bucket
+  InstancePolicy > policy for InstanceRole
+  InstanceProfile > profile to be attached to EC2 instance
+  InstanceSecurityGroup > allowing ort 22, 80
+  EC2Instance 
+  CodeDeployApplication > application to be deployed on EC2 instance 
+  DeploymentGroup 
+  The whole architecture is being deployed in N. Virginia region (us-east-1) and later will be integereated with CodePipeline
+
 Parameters:
   ApplicationName:
     Type: String
@@ -9,6 +22,14 @@ Parameters:
   ApplicationRevisionBucket:
     Type: String
     Description: The name of the Amazon S3 bucket where the application revision is stored
+  S3Key:
+    Type: String
+    Description: The name of the Amazon S3 object that represents the bundled artifacts for the application revision.
+  BundleType:
+    Type: String
+    Description: The file type of the application revision
+    Default: Zip
+  
 
 Resources:
   CodeDeployServiceRole:
@@ -25,8 +46,6 @@ Resources:
               - sts:AssumeRole
             Principal:
               Service:
-                #- ec2.amazonaws.com
-                - codedeploy.us-east-1.amazonaws.com
                 - "codedeploy.amazonaws.com"      #this is for deployment on EC2, need to change this value if the deployment is on ECS / lambda
   
   CodeDeployServicePolicy: 
@@ -39,7 +58,7 @@ Resources:
         Version: 2012-10-17
         Statement:
           - Effect: Allow
-            Action:
+            Action: 
               - ec2:Describe*
               - "iam:PassRole"
               - "ec2:CreateTags"
@@ -112,7 +131,6 @@ Resources:
               - "s3:List*"
             Resource: '*'
       
-  
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties: 
@@ -129,6 +147,10 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           CidrIp: '0.0.0.0/0'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
       Tags:
         - Key: Name
           Value: InstanceSecurityGroup
@@ -146,7 +168,7 @@ Resources:
       Tags: 
         - 
           Key: Type
-          Value: CodeDeloyEC2
+          Value: CodeDeployEC2
         -
           Key: Name
           Value: EC2byCodeDeploy
@@ -180,7 +202,7 @@ Resources:
           Value: !Ref ApplicationName
   
   DeploymentGroup:
-    Type: AWS::CodeDeploy::DeploymentGroup
+    Type:   
     DependsOn: CodeDeployApplication
     Properties: 
       ApplicationName: !Ref CodeDeployApplication
@@ -191,8 +213,8 @@ Resources:
           RevisionType: S3
           S3Location:
             Bucket: !Ref ApplicationRevisionBucket
-            Key: build-output.zip
-            BundleType: Zip
+            Key: !Ref S3Key
+            BundleType: !Ref BundleType
       DeploymentConfigName: CodeDeployDefault.AllAtOnce
       DeploymentStyle: 
         DeploymentOption: WITHOUT_TRAFFIC_CONTROL
@@ -201,7 +223,7 @@ Resources:
         - 
           Key: Type
           Type: KEY_AND_VALUE
-          Value: CodeDeloyEC2
+          Value: CodeDeployEC2
       ServiceRoleArn: !GetAtt CodeDeployServiceRole.Arn
       Tags: 
         - 
