@@ -13,6 +13,9 @@ Parameters:
   CodeCommitRepoURL:
     Type: String
     Description: The HTTPS clone URL to the repository 
+  RepositoryName: 
+    Type: String
+    Description: Name of CodeCommit repository 
   ProjectName:
     Type: String
     Description: Name of the project you want to be deployed in CodeCommit
@@ -90,8 +93,6 @@ Resources:
               #- s3:GetObjectVersion
               #- s3:PutObject
             Resource: '*'
-              #- !Sub "arn:aws:s3:::codepipeline-${AWS::Region}-*/*"
-              #- !Sub "arn:aws:s3:::${DeploymentArtifactBucket}/*"
 
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
@@ -99,7 +100,7 @@ Resources:
     Properties: 
       Artifacts:
         #Type: NO_ARTIFACTS #The build project does not produce any build output
-        Type: CODEPIPELINE #The build project has build output generated through CodePipeline
+        Type: NO_ARTIFACTS #The build project has build output generated through CodePipeline
         #Type: S3           #The build project stores build output in Amazon S3
         #Location: !Ref DeploymentArtifactBucket          #bucket name
         #EncryptionDisabled: True
@@ -109,8 +110,15 @@ Resources:
         #If path is set to MyArtifacts, namespaceType is set to BUILD_ID, and name is set to MyArtifact.zip, then the output artifact is stored in MyArtifacts/build-ID/MyArtifact.zip.
         #Packaging: !Ref Packaging
       Source:
-        Type: CODEPIPELINE
-
+        Type: CODECOMMIT
+        Location: 
+          Fn::Join:
+            - ""
+            - - "https://git-codecommit."
+              - Ref: AWS::Region
+              - ".amazonaws.com/v1/repos/"
+              - Ref: RepositoryName
+        GitCloneDepth: 1
       Description: CodeBuild for the project
       Environment: 
         Type: LINUX_CONTAINER
@@ -121,14 +129,13 @@ Resources:
             Value: !Ref DeploymentArtifactBucket
       Name: !Ref CodeBuildProjectName
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      #Source: 
-        #Type: CODECOMMIT
-        #Location: !Ref CodeCommitRepoURL
       Tags: 
         - 
           Key: Name
           Value: !Ref ProjectName
       TimeoutInMinutes: 10
+
+
 
 Outputs:
   BuildArn:
