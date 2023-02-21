@@ -1,4 +1,4 @@
-Wine Quality MLOPS:
+Wine Quality MLOPS
 
 create env 
 
